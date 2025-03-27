@@ -1,2 +1,7 @@
+.DS_Store
+
 # deps
 node_modules/
+
+landrun/
+landrun.tar.gz
