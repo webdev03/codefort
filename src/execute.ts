@@ -8,7 +8,6 @@ import { writeFile } from "fs/promises";
 
 const ExecuteOptions = z.object({
   language: z.enum(languages.map((x) => x.id) as [string, ...string[]]),
-  version: z.string(),
   code: z.string(),
   stdin: z.string().default(""),
   compileTimeout: z.number(),

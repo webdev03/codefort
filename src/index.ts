@@ -20,28 +20,20 @@ app.post(
   "/v1/run",
   zValidator(
     "json",
-    z
-      .object({
-        language: z.enum(languages.map((x) => x.id) as [string, ...string[]]),
-        version: z.string(),
-        code: z.string(),
-        stdin: z.string().default(""),
-        compileTimeout: z.number().default(10_000),
-        compileMemoryLimit: z.number().default(512),
-        runTimeout: z.number().default(10_000),
-        runMemoryLimit: z.number().default(512),
-      })
-      .refine((data) => {
-        // TODO: Add versions
-        //data.version;
-        return true;
-      }),
+    z.object({
+      language: z.enum(languages.map((x) => x.id) as [string, ...string[]]),
+      code: z.string(),
+      stdin: z.string().default(""),
+      compileTimeout: z.number().default(10_000),
+      compileMemoryLimit: z.number().default(512),
+      runTimeout: z.number().default(10_000),
+      runMemoryLimit: z.number().default(512),
+    }),
   ),
   async (c) => {
     const data = c.req.valid("json");
     const result = await execute({
       language: data.language,
-      version: data.version,
       code: data.code,
       stdin: data.stdin,
       compileTimeout: data.compileTimeout,
