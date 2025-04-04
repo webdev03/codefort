@@ -1,3 +1,5 @@
+cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+
 echo "SETUP SCRIPT FOR CODEFORT"
 echo "-------------------------"
 echo "This script is designed to assist in setting up Codefort on this system."
@@ -42,7 +44,7 @@ rm landrun.tar.gz >/dev/null 2>&1
 rm -rf landrun >/dev/null 2>&1
 
 # NOTE: Change this when new Landrun releases are published!
-curl -o landrun.tar.gz -sSL https://api.github.com/repos/Zouuup/landrun/tarball/1ea69d30e8fffe7ffa7d1b020f01f964d30ca13f >/dev/null 2>&1
+curl -# -L -o landrun.tar.gz https://api.github.com/repos/Zouuup/landrun/tarball/1ea69d30e8fffe7ffa7d1b020f01f964d30ca13f
 
 echo "Extracting Landrun..."
 mkdir landrun
