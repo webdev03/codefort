@@ -3,7 +3,11 @@ import { resolve } from "path";
 import { z } from "zod";
 
 export const LanguageMeta = z.object({
+  "#comment": z.string().optional(),
   fileName: z.string(),
+  neededDirs: z.string().array().default([]),
+  compileScript: z.string().optional(),
+  runScript: z.string(),
 });
 
 const projectRootPath = resolve(import.meta.dir, "../");
@@ -25,7 +29,10 @@ export const languages = await Promise.all(
       );
       return {
         id: x.name,
-        runPath: resolve(x.parentPath, x.name, "run.bash"),
+        runPath: resolve(x.parentPath, x.name, meta.runScript),
+        compilePath: meta.compileScript
+          ? resolve(x.parentPath, x.name, meta.compileScript)
+          : null,
         meta,
       };
     }),

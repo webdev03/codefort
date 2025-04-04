@@ -1,3 +1,5 @@
 {
-  "fileName": "code.js"
+  "fileName": "code.js",
+  "runScript": "./run.bash",
+  "neededDirs": ["/tmp"]
 }
