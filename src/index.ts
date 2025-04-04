@@ -14,6 +14,8 @@ app.get("/", (c) =>
   }),
 );
 
+app.get("/v1/languages", (c) => c.json(languages.map((x) => x.id)));
+
 app.post(
   "/v1/run",
   zValidator(
