@@ -32,6 +32,8 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
   writeFile(join(tempDir, language.meta.fileName), options.code);
 
   let compileTime = 0;
+  let compileStdout = "";
+  let compileStderr = "";
 
   if (language.compilePath) {
     let startCompileTime = Date.now();
@@ -52,6 +54,14 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
         "/lib64",
         "--rox",
         "/bin",
+        "--rox",
+        "/dev",
+        "--rox",
+        "/proc",
+        "--rox",
+        "/etc",
+        "--rox",
+        "/tmp",
         "--rox",
         resolve(projectRootPath, "./languages"),
         ...language.meta.neededDirs.flatMap((x) => ["--rox", x]),
@@ -79,11 +89,15 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
         cwd: tempDir,
         timeout: options.compileTimeout,
         killSignal: "SIGKILL",
+        stdout: "pipe",
+        stderr: "pipe",
       },
     );
 
     await compileProc.exited;
     compileTime = (Date.now() - startCompileTime) / 1000;
+    compileStdout = await new Response(compileProc.stdout).text();
+    compileStderr = await new Response(compileProc.stderr).text();
   }
 
   const runStartTime = Date.now();
@@ -109,6 +123,10 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
       "--rox",
       "/proc",
       "--rox",
+      "/etc",
+      "--rox",
+      "/tmp",
+      "--rox",
       resolve(projectRootPath, "./languages"),
       ...language.meta.neededDirs.flatMap((x) => ["--rox", x]),
       "--rwx",
@@ -128,13 +146,15 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
     ],
     {
       cwd: tempDir,
-      stdin: new Response(options.stdin),
       timeout: options.runTimeout,
       killSignal: "SIGKILL",
+      stdin: new Response(options.stdin),
+      stdout: "pipe",
+      stderr: "pipe",
     },
   );
 
-  await runProc.exited;
+  const exitCode = await runProc.exited;
 
   await rm(tempDir, {
     recursive: true,
@@ -142,13 +162,15 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
   });
 
   return {
-    exitCode: runProc.exitCode!, // the process has exited, ! is fine
+    exitCode,
     stdout: await new Response(runProc.stdout).text(),
     stderr: await new Response(runProc.stderr).text(),
     stats: {
       compile: language.compilePath
         ? {
             realTime: compileTime,
+            stdout: compileStdout,
+            stderr: compileStderr,
           }
         : null,
       run: {
