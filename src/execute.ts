@@ -1,52 +1,50 @@
-import "zod-openapi/extend";
-import { z } from "zod";
-import { languages } from "./languages";
-import { mkdtemp } from "fs/promises";
-import { join, resolve } from "path";
-import { tmpdir } from "os";
-import { rm } from "fs/promises";
-import { writeFile } from "fs/promises";
+import 'zod-openapi/extend';
+import { z } from 'zod';
+import { languages } from './languages';
+import { mkdtemp } from 'fs/promises';
+import { join, resolve } from 'path';
+import { tmpdir } from 'os';
+import { rm } from 'fs/promises';
+import { writeFile } from 'fs/promises';
 
 const ExecuteOptions = z.object({
   language: z.enum(languages.map((x) => x.id) as [string, ...string[]]),
   code: z.string(),
-  stdin: z.string().default(""),
+  stdin: z.string().default(''),
   compileTimeout: z.number(),
   compileMemoryLimit: z.number(),
   runTimeout: z.number(),
   runMemoryLimit: z.number(),
 });
 
-const projectRootPath = resolve(import.meta.dir, "../");
+const projectRootPath = resolve(import.meta.dir, '../');
 
 export const ExecuteSchema = z.object({
   exitCode: z.number().openapi({
-    description: "The numeric exit code given by the code when executed.",
+    description: 'The numeric exit code given by the code when executed.',
   }),
   stdout: z.string().openapi({
-    description: "The stdout given by the code when executed.",
+    description: 'The stdout given by the code when executed.',
   }),
   stderr: z.string().openapi({
-    description: "The stderr given by the code when executed.",
+    description: 'The stderr given by the code when executed.',
   }),
   stats: z.object({
     compile: z
       .object({
         realTime: z.number().openapi({
-          description:
-            "The amount of time taken to compile the program, in milliseconds.",
+          description: 'The amount of time taken to compile the program, in milliseconds.',
         }),
         stdout: z.string(),
         stderr: z.string(),
       })
       .nullable()
       .openapi({
-        description:
-          "Information about the compile process, if applicable to the language.",
+        description: 'Information about the compile process, if applicable to the language.',
         example: {
           realTime: 0.48,
-          stdout: "Compiled successfully!",
-          stderr: "",
+          stdout: 'Compiled successfully!',
+          stderr: '',
         },
       }),
     run: z
@@ -54,7 +52,7 @@ export const ExecuteSchema = z.object({
         realTime: z.number(),
       })
       .openapi({
-        description: "Information about the run process.",
+        description: 'Information about the run process.',
         example: {
           realTime: 0.98,
         },
@@ -62,56 +60,52 @@ export const ExecuteSchema = z.object({
   }),
 });
 
-export async function execute(
-  optionsRaw: z.infer<typeof ExecuteOptions>,
-): Promise<z.infer<typeof ExecuteSchema>> {
+export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>): Promise<z.infer<typeof ExecuteSchema>> {
   const options = ExecuteOptions.parse(optionsRaw); // we might make the zod schema change the values
 
-  const language = languages.find(
-    (x) => x.id.toLowerCase() === options.language.toLowerCase(),
-  );
-  if (!language) throw Error("Language not found");
+  const language = languages.find((x) => x.id.toLowerCase() === options.language.toLowerCase());
+  if (!language) throw Error('Language not found');
 
-  const tempDir = await mkdtemp(join(tmpdir(), "codefort-exec-"));
+  const tempDir = await mkdtemp(join(tmpdir(), 'codefort-exec-'));
 
   // write code
   writeFile(join(tempDir, language.meta.fileName), options.code);
 
   let compileTime = 0;
-  let compileStdout = "";
-  let compileStderr = "";
+  let compileStdout = '';
+  let compileStderr = '';
 
   if (language.compilePath) {
     let startCompileTime = Date.now();
     const compileProc = Bun.spawn(
       [
         // START - disable network
-        "unshare",
-        "-r",
-        "-n",
+        'unshare',
+        '-r',
+        '-n',
         // END - disable network
-        resolve(projectRootPath, "./landrun/landrun"),
+        resolve(projectRootPath, './landrun/landrun'),
         // START - permissions
-        "--rox",
-        "/usr",
-        "--rox",
-        "/lib",
-        "--rox",
-        "/lib64",
-        "--rox",
-        "/bin",
-        "--rox",
-        "/dev",
-        "--rox",
-        "/proc",
-        "--rox",
-        "/etc",
-        "--rox",
-        "/tmp",
-        "--rox",
-        resolve(projectRootPath, "./languages"),
-        ...language.meta.neededDirs.flatMap((x) => ["--rox", x]),
-        "--rwx",
+        '--rox',
+        '/usr',
+        '--rox',
+        '/lib',
+        '--rox',
+        '/lib64',
+        '--rox',
+        '/bin',
+        '--rox',
+        '/dev',
+        '--rox',
+        '/proc',
+        '--rox',
+        '/etc',
+        '--rox',
+        '/tmp',
+        '--rox',
+        resolve(projectRootPath, './languages'),
+        ...language.meta.neededDirs.flatMap((x) => ['--rox', x]),
+        '--rwx',
         tempDir,
         // END - permissions
 
@@ -123,20 +117,15 @@ export async function execute(
         //"-e",
         //"trace=file",
 
-        Bun.which("bash")!,
-        resolve(
-          projectRootPath,
-          "./languages/",
-          language.id,
-          language.compilePath,
-        ),
+        Bun.which('bash')!,
+        resolve(projectRootPath, './languages/', language.id, language.compilePath),
       ],
       {
         cwd: tempDir,
         timeout: options.compileTimeout,
-        killSignal: "SIGKILL",
-        stdout: "pipe",
-        stderr: "pipe",
+        killSignal: 'SIGKILL',
+        stdout: 'pipe',
+        stderr: 'pipe',
         maxBuffer: 2 * 1024 * 1024, // 2mb
       },
     );
@@ -151,32 +140,32 @@ export async function execute(
   const runProc = Bun.spawn(
     [
       // START - disable network
-      "unshare",
-      "-r",
-      "-n",
+      'unshare',
+      '-r',
+      '-n',
       // END - disable network
-      resolve(projectRootPath, "./landrun/landrun"),
+      resolve(projectRootPath, './landrun/landrun'),
       // START - permissions
-      "--rox",
-      "/usr",
-      "--rox",
-      "/lib",
-      "--rox",
-      "/lib64",
-      "--rox",
-      "/bin",
-      "--rox",
-      "/dev",
-      "--rox",
-      "/proc",
-      "--rox",
-      "/etc",
-      "--rox",
-      "/tmp",
-      "--rox",
-      resolve(projectRootPath, "./languages"),
-      ...language.meta.neededDirs.flatMap((x) => ["--rox", x]),
-      "--rwx",
+      '--rox',
+      '/usr',
+      '--rox',
+      '/lib',
+      '--rox',
+      '/lib64',
+      '--rox',
+      '/bin',
+      '--rox',
+      '/dev',
+      '--rox',
+      '/proc',
+      '--rox',
+      '/etc',
+      '--rox',
+      '/tmp',
+      '--rox',
+      resolve(projectRootPath, './languages'),
+      ...language.meta.neededDirs.flatMap((x) => ['--rox', x]),
+      '--rwx',
       tempDir,
       // END - permissions
 
@@ -188,16 +177,16 @@ export async function execute(
       //"-e",
       //"trace=file",
 
-      Bun.which("bash")!,
-      resolve(projectRootPath, "./languages/", language.id, language.runPath),
+      Bun.which('bash')!,
+      resolve(projectRootPath, './languages/', language.id, language.runPath),
     ],
     {
       cwd: tempDir,
       timeout: options.runTimeout,
-      killSignal: "SIGKILL",
+      killSignal: 'SIGKILL',
       stdin: new Response(options.stdin),
-      stdout: "pipe",
-      stderr: "pipe",
+      stdout: 'pipe',
+      stderr: 'pipe',
       maxBuffer: 2 * 1024 * 1024, // 2mb
     },
   );
