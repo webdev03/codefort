@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export const LanguageMeta = z.object({
   "#comment": z.string().optional(),
+  name: z.string(), // fancy name of language
   fileName: z.string(),
   neededDirs: z.string().array().default([]),
   compileScript: z.string().optional(),

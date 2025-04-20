@@ -1,4 +1,5 @@
 {
+  "name": "TypeScript (Bun)",
   "fileName": "code.ts",
   "runScript": "./run.bash",
   "neededDirs": []

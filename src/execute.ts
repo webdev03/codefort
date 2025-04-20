@@ -1,3 +1,4 @@
+import "zod-openapi/extend";
 import { z } from "zod";
 import { languages } from "./languages";
 import { mkdtemp } from "fs/promises";
@@ -18,7 +19,52 @@ const ExecuteOptions = z.object({
 
 const projectRootPath = resolve(import.meta.dir, "../");
 
-export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
+export const ExecuteSchema = z.object({
+  exitCode: z.number().openapi({
+    description: "The numeric exit code given by the code when executed.",
+  }),
+  stdout: z.string().openapi({
+    description: "The stdout given by the code when executed.",
+  }),
+  stderr: z.string().openapi({
+    description: "The stderr given by the code when executed.",
+  }),
+  stats: z.object({
+    compile: z
+      .object({
+        realTime: z.number().openapi({
+          description:
+            "The amount of time taken to compile the program, in milliseconds.",
+        }),
+        stdout: z.string(),
+        stderr: z.string(),
+      })
+      .nullable()
+      .openapi({
+        description:
+          "Information about the compile process, if applicable to the language.",
+        example: {
+          realTime: 0.48,
+          stdout: "Compiled successfully!",
+          stderr: "",
+        },
+      }),
+    run: z
+      .object({
+        realTime: z.number(),
+      })
+      .openapi({
+        description: "Information about the run process.",
+        example: {
+          realTime: 0.98,
+        },
+      }),
+  }),
+});
+
+export async function execute(
+  optionsRaw: z.infer<typeof ExecuteOptions>,
+): Promise<z.infer<typeof ExecuteSchema>> {
   const options = ExecuteOptions.parse(optionsRaw); // we might make the zod schema change the values
 
   const language = languages.find(
@@ -91,6 +137,7 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
         killSignal: "SIGKILL",
         stdout: "pipe",
         stderr: "pipe",
+        maxBuffer: 2 * 1024 * 1024, // 2mb
       },
     );
 
@@ -151,9 +198,10 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
       stdin: new Response(options.stdin),
       stdout: "pipe",
       stderr: "pipe",
+      maxBuffer: 2 * 1024 * 1024, // 2mb
     },
   );
-
+  console.log(options);
   const exitCode = await runProc.exited;
 
   await rm(tempDir, {
@@ -174,7 +222,7 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>) {
           }
         : null,
       run: {
-        realTime: (Date.now() - runStartTime) / 1000,
+        realTime: Date.now() - runStartTime,
       },
     },
   };
