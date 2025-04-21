@@ -42,7 +42,7 @@ export const ExecuteSchema = z.object({
       .openapi({
         description: 'Information about the compile process, if applicable to the language.',
         example: {
-          realTime: 0.48,
+          realTime: 9,
           stdout: 'Compiled successfully!',
           stderr: '',
         },
@@ -54,7 +54,7 @@ export const ExecuteSchema = z.object({
       .openapi({
         description: 'Information about the run process.',
         example: {
-          realTime: 0.98,
+          realTime: 8,
         },
       }),
   }),
@@ -131,7 +131,7 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>): Promi
     );
 
     await compileProc.exited;
-    compileTime = (Date.now() - startCompileTime) / 1000;
+    compileTime = Date.now() - startCompileTime;
     compileStdout = await new Response(compileProc.stdout).text();
     compileStderr = await new Response(compileProc.stderr).text();
   }
