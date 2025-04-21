@@ -10,8 +10,10 @@ import { execute, ExecuteSchema } from './execute';
 
 const app = new Hono();
 
-app.get(
-  '/v1/languages',
+const v1 = new Hono();
+
+v1.get(
+  '/languages',
   describeRoute({
     description: 'Lists the languages that are available on this instance.',
     responses: {
@@ -54,8 +56,8 @@ app.get(
     ),
 );
 
-app.post(
-  '/v1/run',
+v1.post(
+  '/run',
   describeRoute({
     description: 'Executes code in the codefort sandbox.',
     responses: {
@@ -109,6 +111,8 @@ app.post(
     return c.json(result);
   },
 );
+
+app.route('/v1', v1);
 
 app.get(
   '/openapi',
