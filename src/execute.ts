@@ -85,6 +85,10 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>): Promi
         '-n',
         // END - disable network
         resolve(projectRootPath, './landrun/landrun'),
+        // START - Pass `PATH`
+        '--env',
+        'PATH',
+        // END - Pass `PATH`
         // START - permissions
         '--rox',
         '/usr',
@@ -145,6 +149,10 @@ export async function execute(optionsRaw: z.infer<typeof ExecuteOptions>): Promi
       '-n',
       // END - disable network
       resolve(projectRootPath, './landrun/landrun'),
+      // START - Pass `PATH`
+      '--env',
+      'PATH',
+      // END - Pass `PATH`
       // START - permissions
       '--rox',
       '/usr',
