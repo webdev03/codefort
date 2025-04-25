@@ -9,6 +9,8 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+    cap_add:
+      - ALL
     deploy:
       resources: # Change this to limit resources the container can use
         limits:
