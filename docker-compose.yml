@@ -1,0 +1,30 @@
+services:
+  codefort:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codefort
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    security_opt:
+      - apparmor=unconfined
+      - seccomp=unconfined
+    cap_add:
+      - SYS_ADMIN
+      - NET_ADMIN # The isolation system needs lo (local loopback)
+    deploy:
+      resources:
+        limits:
+          memory: 0.5g
+          cpus: '0.50'
+          pids: 250
+    networks:
+      - judge-network
+
+networks:
+  judge-network:
+    name: judge-network
+    external: true
