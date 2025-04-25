@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y python3
 WORKDIR /app
 
 # Copy all project files to the container
-COPY ./repo_data/codefort .
+COPY . .
 
 # Install dependencies
 RUN bun install --frozen-lockfile
