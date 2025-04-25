@@ -9,6 +9,9 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+    security_opt:
+      - apparmor=unconfined
+      - seccomp=unconfined
     cap_add:
       - ALL
     deploy:
