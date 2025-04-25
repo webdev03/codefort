@@ -1,0 +1,23 @@
+services:
+  codefort:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codefort
+    ports:
+      - "3000:3000" # Change this if you want
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    deploy:
+      resources: # Change this to limit resources the container can use
+        limits:
+          memory: 0.5g
+          cpus: '0.50'
+          pids: 250
+#    volumes:
+      # If you need to persist any data, uncomment and modify this
+      # - ./data:/app/data
+
+
+
