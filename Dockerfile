@@ -8,7 +8,7 @@ WORKDIR /app
 # Copy all project files to the container
 COPY . .
 
-RUN yes | bash setup.bash
+RUN ./setup.bash -y
 
 # Install dependencies
 RUN bun install --frozen-lockfile
