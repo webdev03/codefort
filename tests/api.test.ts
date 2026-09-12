@@ -50,6 +50,13 @@ describe('API security boundary', () => {
     });
     expect((await app.request(req)).status).toBe(413);
   });
+  test('malformed JSON is a client error', async () => {
+    const app = createApp(key);
+    const req = new Request('http://localhost/v1/run', {
+      method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: '{',
+    });
+    expect((await app.request(req)).status).toBe(400);
+  });
   test('returns bounded capacity errors and hides internal diagnostics', async () => {
     for (const [error, status] of [[new BusyError(), 429], [new Error('secret host path'), 503]] as const) {
       const app = createApp(key, async () => { throw error; });

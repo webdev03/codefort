@@ -11,7 +11,7 @@ async function control(args: string[], input = '') {
   const result = await runProcess([...podman, ...args], controlTimeout, input, 64 * 1024);
   if (result.exitCode !== 0) {
     // Available to CLI callers/tests; the API always returns a generic 503.
-    throw new SandboxError(`Sandbox ${args[0]} failed`, { cause: result.stderr });
+    throw new SandboxError(`Sandbox ${args[0]} failed (${result.exitCode}): ${result.stderr}`);
   }
   return result.stdout.trim();
 }

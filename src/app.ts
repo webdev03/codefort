@@ -4,6 +4,7 @@ import { resolver, validator } from 'hono-openapi/zod';
 import 'zod-openapi/extend';
 import { z } from 'zod';
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 
 import { languages } from './languages';
 import { execute, ExecuteSchema } from './execute';
@@ -46,6 +47,9 @@ export function createApp(apiKey: string, runner: typeof execute = execute) {
     await next();
   });
   app.onError((error, c) => {
+    if (error instanceof HTTPException && error.status === 400) {
+      return c.json({ error: 'Invalid request body' }, 400);
+    }
     if (error instanceof BusyError) {
       c.header('Retry-After', '1');
       return c.json({ error: 'Execution capacity reached' }, 429);
