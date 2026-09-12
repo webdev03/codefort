@@ -1,1 +1,1 @@
-bash code.bash
+exec bash code.bash

@@ -5,8 +5,7 @@ import { z } from 'zod';
 export const LanguageMeta = z.object({
   '#comment': z.string().optional(),
   name: z.string(), // fancy name of language
-  fileName: z.string(),
-  neededDirs: z.string().array().default([]),
+  fileName: z.string().regex(/^[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/),
   compileScript: z.string().optional(),
   runScript: z.string(),
 });
@@ -26,8 +25,8 @@ export const languages = await Promise.all(
       );
       return {
         id: x.name,
-        runPath: resolve(x.parentPath, x.name, meta.runScript),
-        compilePath: meta.compileScript ? resolve(x.parentPath, x.name, meta.compileScript) : null,
+        runPath: resolve('/opt/codefort/languages', x.name, meta.runScript),
+        compilePath: meta.compileScript ? resolve('/opt/codefort/languages', x.name, meta.compileScript) : null,
         meta,
       };
     }),
