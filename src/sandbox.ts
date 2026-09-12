@@ -34,7 +34,7 @@ export class Sandbox {
       '--security-opt=no-new-privileges', '--user=65534:65534', '--workdir=/work',
       '--memory', `${memory}m`, '--memory-swap', `${memory}m`, '--cpus=1', '--pids-limit=64',
       '--ulimit=nofile=256:256', '--ulimit=core=0:0', '--log-driver=none', '--shm-size=1m',
-      '--tmpfs=/work:rw,exec,nosuid,nodev,size=64m,mode=0700,uid=65534,gid=65534',
+      '--tmpfs=/work:rw,exec,nosuid,nodev,size=64m,mode=1777',
       '--tmpfs=/tmp:rw,noexec,nosuid,nodev,size=16m,mode=1777',
       '--env=HOME=/work', '--env=TMPDIR=/tmp', '--env=PATH=/usr/local/bin:/usr/bin:/bin',
       // Conmon enforces a lifetime even if the API process is abruptly killed.

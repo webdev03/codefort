@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { execute } from '../src/execute';
@@ -30,6 +30,8 @@ integration('real Podman sandbox', () => {
 
   test('cannot read host files or a concurrent job workspace', async () => {
     const dir = await mkdtemp(join(tmpdir(), 'codefort-exec-'));
+    // Make the canary readable so Unix permissions cannot mask a mount leak.
+    await chmod(dir, 0o755);
     await writeFile(join(dir, 'secret'), 'host-canary');
     const other = new Sandbox();
     try {
@@ -126,6 +128,12 @@ PY` });
     const result = await execute({ language: 'cpp-gcc', code: 'not valid C++' });
     expect(result.exitCode).not.toBe(0);
     expect(result.stats.compile!.stderr.length).toBeGreaterThan(0);
+    expect(result.stats.run.realTime).toBe(0);
+  }, 30000);
+
+  test('compile deadline also tears down the container', async () => {
+    const result = await execute({ language: 'cpp-gcc', compileTimeout: 1, code: 'int main(){}' });
+    expect(result.exitCode).toBe(124);
     expect(result.stats.run.realTime).toBe(0);
   }, 30000);
 
