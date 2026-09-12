@@ -1,0 +1,58 @@
+name: Firecracker viability
+on:
+  push:
+    branches: [security/firecracker-viability]
+permissions:
+  contents: read
+jobs:
+  boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check KVM
+        run: |
+          ls -l /dev/kvm
+          sudo python3 - <<'PY'
+          import os,fcntl
+          fd=os.open('/dev/kvm',os.O_RDWR)
+          assert fcntl.ioctl(fd,0xae00,0)==12
+          vm=fcntl.ioctl(fd,0xae01,0)
+          os.close(vm)
+          os.close(fd)
+          print('KVM_CREATE_VM succeeded')
+          PY
+      - name: Download verified Firecracker release
+        run: |
+          curl -fLsS -o fc.tgz https://github.com/firecracker-microvm/firecracker/releases/download/v1.17.0/firecracker-v1.17.0-x86_64.tgz
+          echo '06094a1108ae9e82aa4c23a775aa92758f53f1175d422270d9d6162cb9ade558  fc.tgz' | sha256sum -c -
+          tar xzf fc.tgz
+          cp release-v1.17.0-x86_64/firecracker-v1.17.0-x86_64 firecracker
+      - name: Boot minimal guest
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y busybox-static e2fsprogs
+          python3 - <<'PY'
+          import urllib.request,xml.etree.ElementTree as E,json,os
+          base='https://s3.amazonaws.com/spec.ccfc.min'
+          def keys(prefix,tag):
+              url=base+'?list-type=2&prefix='+prefix
+              if tag=='Prefix': url+='&delimiter=/'
+              root=E.fromstring(urllib.request.urlopen(url).read())
+              return [n.text for n in root.iter() if n.tag.endswith('}'+tag)]
+          prefixes=sorted(p for p in keys('firecracker-ci/','Prefix') if len(p.split('/'))==3 and p.split('/')[1][:8].isdigit())
+          prefix=prefixes[-1] if prefixes else 'firecracker-ci/v1.17/'
+          kernels=[p for p in keys(prefix+'x86_64/vmlinux-','Key') if '.config' not in p and '.sha' not in p]
+          kernel=sorted(kernels)[-1]
+          print('Using test kernel:',kernel)
+          urllib.request.urlretrieve(base+'/'+kernel,'vmlinux')
+          os.makedirs('root/bin',exist_ok=True)
+          os.makedirs('root/dev',exist_ok=True)
+          os.system('cp /usr/bin/busybox root/bin/busybox')
+          open('root/init','w').write('#!/bin/busybox sh\necho CODEFORT_FIRECRACKER_BOOT_OK\n/bin/busybox poweroff -f\n')
+          os.chmod('root/init',0o755)
+          json.dump({'boot-source':{'kernel_image_path':os.path.abspath('vmlinux'),'boot_args':'console=ttyS0 reboot=k panic=1 pci=off root=/dev/vda ro init=/init'},'drives':[{'drive_id':'root','path_on_host':os.path.abspath('root.ext4'),'is_root_device':True,'is_read_only':True}],'machine-config':{'vcpu_count':1,'mem_size_mib':128}},open('config.json','w'))
+          PY
+          truncate -s 32M root.ext4
+          mkfs.ext4 -q -F -d root root.ext4
+          sudo timeout 30 ./firecracker --no-api --config-file config.json > boot.log 2>&1
+          grep CODEFORT_FIRECRACKER_BOOT_OK boot.log
