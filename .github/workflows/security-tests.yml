@@ -1,0 +1,26 @@
+name: Security tests
+on:
+  push:
+    branches: [security/sandbox-hardening]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bunx --package typescript@5.9.3 tsc --noEmit
+      - run: bun run test
+      - name: Install container runtime
+        run: sudo apt-get update && sudo apt-get install -y podman
+      - name: Build sandbox image
+        run: sudo podman build -t localhost/codefort-sandbox:local -f Containerfile .
+      - name: Real sandbox regressions
+        run: sudo env "PATH=$PATH" CODEFORT_INTEGRATION=1 bun test tests/integration.test.ts
