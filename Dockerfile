@@ -29,10 +29,15 @@ RUN bun install --production --frozen-lockfile && rm -rf /root/.bun/install/cach
 COPY src ./src
 COPY languages ./languages
 
-# NOTE: this container runs as root on purpose — bubblewrap needs to create
-# user/mount/pid namespaces for the sandbox. Isolation comes from elsewhere:
-# private compose network, no published ports, optional CODEFORT_TOKEN auth,
-# and container resource limits (see docker-compose.yml).
+# Drop root: the server runs as nobody, and every job gets a private user
+# namespace mapping that uid to jail-nobody. Unprivileged user namespaces
+# are sufficient for the whole sandbox (verified), so the container needs no
+# capabilities at all — see docker-compose.yml (cap_drop: ALL).
+# RLIMIT_NPROC enforcement depends on this: uid-0 processes are exempt.
+RUN chown -R 65534:65534 /app
+USER 65534:65534
+ENV HOME=/tmp
+
 EXPOSE 3000
 
 CMD ["bun", "src/index.ts"]

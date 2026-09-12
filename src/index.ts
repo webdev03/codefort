@@ -1,6 +1,7 @@
 import { Scalar } from '@scalar/hono-api-reference';
 import { openAPISpecs, describeRoute } from 'hono-openapi';
 import { resolver, validator } from 'hono-openapi/zod';
+import { getConnInfo } from 'hono/bun';
 import 'zod-openapi/extend';
 import { z } from 'zod';
 import { Hono } from 'hono';
@@ -17,13 +18,39 @@ const v1 = new Hono();
 // unset, the API is open — only deploy it on a private network then.
 // NOTE: only /run is guarded; /languages stays public (non-sensitive, and
 // container healthchecks hit it without credentials).
+// The token is scrubbed from the environment right after startup so it never
+// appears in /proc/self/environ (defense in depth alongside the userns
+// boundary, which already denies cross-namespace environ reads).
+const codefortToken = process.env['CODEFORT_TOKEN'] || undefined;
+if (codefortToken) delete process.env['CODEFORT_TOKEN'];
+
 v1.use('/run', async (c, next) => {
-  const expected = process.env['CODEFORT_TOKEN'];
-  if (expected && c.req.header('authorization') !== `Bearer ${expected}`) {
+  if (codefortToken && c.req.header('authorization') !== `Bearer ${codefortToken}`) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   await next();
 });
+
+// The sandbox is scarce and expensive: bound concurrent executions and
+// per-client rate so one actor can't wedge the executor (container pids and
+// memory are the hard backstops).
+const MAX_CONCURRENT_RUNS = 2;
+let inFlightRuns = 0;
+const RUN_RATE_LIMIT = 30;
+const RUN_RATE_WINDOW_MS = 60_000;
+const runHits = new Map<string, number[]>();
+
+function runRateAllowed(key: string, now = Date.now()): boolean {
+  const cutoff = now - RUN_RATE_WINDOW_MS;
+  const hits = (runHits.get(key) ?? []).filter((t) => t > cutoff);
+  if (hits.length >= RUN_RATE_LIMIT) {
+    runHits.set(key, hits);
+    return false;
+  }
+  hits.push(now);
+  runHits.set(key, hits);
+  return true;
+}
 
 v1.get(
   '/languages',
@@ -115,17 +142,36 @@ v1.post(
     }),
   ),
   async (c) => {
-    const data = c.req.valid('json');
-    const result = await execute({
-      language: data.language,
-      code: data.code,
-      stdin: data.stdin,
-      compileTimeout: data.compileTimeout,
-      compileMemoryLimit: data.compileMemoryLimit,
-      runTimeout: data.runTimeout,
-      runMemoryLimit: data.runMemoryLimit,
-    });
-    return c.json(result);
+    // Rate-limit key from the actual remote address, not X-Forwarded-For
+    // (clients can spoof that header to rotate buckets; nothing here sets it).
+    let clientIp = 'direct';
+    try {
+      clientIp = getConnInfo(c).remote.address || 'direct';
+    } catch {
+      // Fall back to the shared bucket if conn info is unavailable.
+    }
+    if (!runRateAllowed(`run:${clientIp}`)) {
+      return c.json({ error: 'Too many requests' }, 429);
+    }
+    if (inFlightRuns >= MAX_CONCURRENT_RUNS) {
+      return c.json({ error: 'Executor busy, try again later' }, 429);
+    }
+    inFlightRuns++;
+    try {
+      const data = c.req.valid('json');
+      const result = await execute({
+        language: data.language,
+        code: data.code,
+        stdin: data.stdin,
+        compileTimeout: data.compileTimeout,
+        compileMemoryLimit: data.compileMemoryLimit,
+        runTimeout: data.runTimeout,
+        runMemoryLimit: data.runMemoryLimit,
+      });
+      return c.json(result);
+    } finally {
+      inFlightRuns--;
+    }
   },
 );
 
@@ -137,6 +183,7 @@ app.get(
     documentation: {
       info: {
         title: 'codefort',
+        version: '1.0.0',
         description: 'Next-generation code isolation system.',
       },
     },

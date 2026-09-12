@@ -1,5 +1,7 @@
 # Keep secrets, VCS history, and build artifacts out of the build context.
 .git
+.env
+.env.*
 node_modules
 landrun/
 landrun.tar.gz

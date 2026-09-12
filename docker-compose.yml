@@ -5,7 +5,9 @@ services:
       dockerfile: Dockerfile
     container_name: codefort
     ports:
-      - '3000:3000'
+      # Localhost-only by default: this API executes arbitrary code.
+      # Only publish wider when CODEFORT_TOKEN is set and understood.
+      - '127.0.0.1:3000:3000'
     restart: unless-stopped
     environment:
       - NODE_ENV=production
@@ -15,9 +17,8 @@ services:
     security_opt:
       - apparmor=unconfined
       - seccomp=unconfined
-    cap_add:
-      - SYS_ADMIN
-      - NET_ADMIN # The isolation system needs lo (local loopback)
+    cap_drop:
+      - ALL
     deploy:
       resources:
         limits:
