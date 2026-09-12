@@ -9,7 +9,10 @@ const controlTimeout = 15_000;
 
 async function control(args: string[], input = '') {
   const result = await runProcess([...podman, ...args], controlTimeout, input, 64 * 1024);
-  if (result.exitCode !== 0) throw new SandboxError('Sandbox operation failed');
+  if (result.exitCode !== 0) {
+    // Available to CLI callers/tests; the API always returns a generic 503.
+    throw new SandboxError(`Sandbox ${args[0]} failed`, { cause: result.stderr });
+  }
   return result.stdout.trim();
 }
 
@@ -26,7 +29,7 @@ export class Sandbox {
   async start(memory: number) {
     await control([
       'run', '--detach', '--name', this.name, '--label', 'app=codefort',
-      '--pull=never', '--network=none', '--pid=private', '--ipc=private', '--cgroupns=private',
+      '--pull=never', '--http-proxy=false', '--network=none', '--pid=private', '--ipc=private', '--cgroupns=private',
       '--cgroups=enabled', '--read-only', '--read-only-tmpfs=false', '--cap-drop=ALL',
       '--security-opt=no-new-privileges', '--user=65534:65534', '--workdir=/work',
       '--memory', `${memory}m`, '--memory-swap', `${memory}m`, '--cpus=1', '--pids-limit=64',
