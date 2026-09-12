@@ -1,21 +1,38 @@
-# Use the official Bun image as base
-FROM oven/bun:latest
-
-RUN apt-get update && apt-get install -y python3 golang curl tar bubblewrap && apt-get clean all && \
-    find / -type d -name '*cache*' -o -type f \( -name '*.pyc' -o -name '*.pyo' \) -exec rm -rf {} + 2>/dev/null
+# Pinned base (same Bun 1.x as happyjudge). Update intentionally.
+FROM oven/bun:1@sha256:9114c058aeae42162ee16dd5084b95fe9473970bb6bcb5b232ab1630f0546895 AS builder
 
 WORKDIR /app
-# Copy all project files to the container
-COPY . .
 
-RUN bash setup.bash -s -- -y
-
-# Install dependencies
+COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
+# ---- Production runtime ----
+FROM oven/bun:1-slim@sha256:cb3bbbb08e13a4a2ff400f24c7a2a1d5efa83f6ef8544d52d95a519631e2fc61 AS runner
+
+# Runtime deps for the language packs: bubblewrap (sandbox), bash, python3,
+# g++ (cpp-gcc). NOTE: setup.bash's Landrun download/build is intentionally
+# NOT run here — the executor uses bubblewrap (see src/execute.ts), so the Go
+# toolchain and Landrun sources would only bloat the image.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends bubblewrap bash python3 g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=3000
+
+COPY package.json bun.lock ./
+# Production dependencies only (no prettier/@types at runtime).
+RUN bun install --production --frozen-lockfile && rm -rf /root/.bun/install/cache /tmp/*
+
+COPY src ./src
+COPY languages ./languages
+
+# NOTE: this container runs as root on purpose — bubblewrap needs to create
+# user/mount/pid namespaces for the sandbox. Isolation comes from elsewhere:
+# private compose network, no published ports, optional CODEFORT_TOKEN auth,
+# and container resource limits (see docker-compose.yml).
 EXPOSE 3000
 
-RUN apt-get clean all
-RUN find / -type d -name '*cache*' -o -type f \( -name '*.pyc' -o -name '*.pyo' \) -exec rm -rf {} + 2>/dev/null
-
-CMD ["bun", "run", "start"]
+CMD ["bun", "src/index.ts"]

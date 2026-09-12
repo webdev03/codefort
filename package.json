@@ -15,7 +15,7 @@
     "zod-openapi": "^4.2.4"
   },
   "devDependencies": {
-    "@types/bun": "latest",
+    "@types/bun": "^1.4.2",
     "prettier": "3.5.3"
   }
 }

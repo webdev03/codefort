@@ -5,10 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: codefort
     ports:
-      - "3000:3000"
+      - '3000:3000'
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      # Shared secret for POST /v1/run (callers send `Authorization: Bearer ...`).
+      # Empty = open API: only bind 127.0.0.1 or run on a private network then.
+      - CODEFORT_TOKEN=${CODEFORT_TOKEN:-}
     security_opt:
       - apparmor=unconfined
       - seccomp=unconfined
