@@ -4,11 +4,23 @@ echo "SETUP SCRIPT FOR CODEFORT"
 echo "-------------------------"
 echo "This script is designed to assist in setting up Codefort on this system."
 
-read -r -p "Are you sure you want to proceed? [y/N] " -n 1
-echo
-if [[ !("$REPLY" =~ ^[Yy]$) ]]; then
-    echo "Ending..."
-    exit 1
+# Check for --assume-yes or -y flags
+assume_yes=0
+for arg in "$@"; do
+  if [[ "$arg" == "--assume-yes" ]] || [[ "$arg" == "-y" ]]; then
+    assume_yes=1
+    break
+  fi
+done
+
+# Skip confirmation if --assume-yes or -y flag is present
+if [[ "$assume_yes" -eq 0 ]]; then
+  read -r -p "Are you sure you want to proceed? [y/N] " -n 1
+  echo
+  if [[ !("$REPLY" =~ ^[Yy]$) ]]; then
+      echo "Ending..."
+      exit 1
+  fi
 fi
 
 echo
